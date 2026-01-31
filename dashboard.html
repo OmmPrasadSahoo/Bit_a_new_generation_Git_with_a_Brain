@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>BIT // GRAND CENTRAL</title>
+    <style>
+        :root { --bg: #0a0a0a; --panel: #111; --green: #00ff41; --purple: #d600ff; --blue: #00d9ff; --text: #eee; }
+        body { background: var(--bg); color: var(--text); font-family: 'Consolas', monospace; margin: 0; padding: 20px; height: 95vh; overflow: hidden; display: flex; flex-direction: column; }
+        
+        /* HEADER STYLES */
+        .app-header {
+            text-align: center; margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 15px;
+        }
+        .app-header h1 {
+            margin: 0; font-size: 2.5rem; letter-spacing: 5px; color: #fff; text-shadow: 0 0 10px rgba(255,255,255,0.5);
+        }
+        .app-header .tagline {
+            color: var(--green); font-size: 1.1rem; margin-top: 5px; font-weight: bold; letter-spacing: 1px;
+        }
+
+        /* GRID LAYOUT */
+        .grid { display: grid; grid-template-columns: 280px 1fr 320px; gap: 20px; height: 100%; overflow: hidden; }
+        .col { display: flex; flex-direction: column; gap: 20px; height: 100%; overflow: hidden; }
+        
+        .card { 
+            background: var(--panel); border: 1px solid #333; padding: 15px; 
+            border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.6); display: flex; flex-direction: column;
+        }
+        
+        h2 { margin: 0 0 10px 0; border-bottom: 2px solid #333; padding-bottom: 8px; font-size: 0.9rem; color: var(--green); text-transform: uppercase; letter-spacing: 1.5px; }
+
+        /* GHOST & FILES */
+        .list-container { overflow-y: auto; flex: 1; }
+        .file-item { 
+            cursor: pointer; padding: 8px; border-left: 3px solid transparent; transition: 0.2s; font-size: 0.9em; margin-bottom: 2px;
+        }
+        .file-item:hover { background: #222; border-left-color: var(--blue); color: #fff; }
+        .file-item.mod { color: var(--blue); font-weight: bold; }
+
+        .ghost-item { color: var(--purple); padding: 5px 0; border-bottom: 1px solid #222; display: flex; align-items: center; gap: 8px; }
+
+        /* EDITOR */
+        .editor-area {
+            flex: 1; background: #050505; color: #d4d4d4; border: 1px solid #333; 
+            padding: 15px; font-family: 'Consolas', monospace; font-size: 14px; 
+            resize: none; outline: none; line-height: 1.5; margin-bottom: 10px;
+        }
+        .terminal {
+            height: 120px; background: #000; border-top: 2px solid var(--purple); 
+            padding: 10px; font-size: 0.85em; overflow-y: auto; color: var(--green); white-space: pre-wrap;
+        }
+
+        /* TIMELINE (Advanced) */
+        .timeline { position: relative; padding-left: 20px; border-left: 2px solid #333; overflow-y: auto; flex: 1; }
+        .commit-node { margin-bottom: 25px; position: relative; }
+        .commit-node::before {
+            content: ''; position: absolute; left: -27px; top: 4px; width: 12px; height: 12px; 
+            background: var(--bg); border: 2px solid var(--purple); border-radius: 50%;
+        }
+        .commit-header { display: flex; justify-content: space-between; font-size: 0.75em; color: #888; margin-bottom: 4px; }
+        .commit-author { color: var(--blue); font-weight: bold; }
+        .commit-msg { font-weight: bold; color: #fff; font-size: 0.9em; }
+        .commit-hash { font-family: monospace; background: #222; padding: 2px 4px; border-radius: 3px; font-size: 0.7em; }
+
+        /* BUTTONS */
+        .btn-group { display: flex; gap: 10px; margin-bottom: 10px; }
+        button { 
+            flex: 1; background: transparent; border: 1px solid #444; color: #aaa; 
+            padding: 10px; cursor: pointer; font-weight: bold; transition: 0.2s;
+        }
+        button:hover { border-color: var(--green); color: var(--green); background: rgba(0,255,65,0.05); }
+        button.action { background: var(--purple); color: #fff; border: none; }
+        button.action:hover { background: #b000d6; box-shadow: 0 0 15px var(--purple); }
+        
+        input { background: #222; border: 1px solid #444; color: white; padding: 8px; width: 100%; box-sizing: border-box; margin-bottom: 8px; }
+
+        /* DIFF MODAL */
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.9); z-index: 999; justify-content: center; align-items: center;
+        }
+        .diff-box {
+            background: #111; border: 1px solid var(--green); width: 80%; height: 80%; 
+            padding: 20px; overflow-y: auto;
+        }
+        .diff-add { background: rgba(0, 255, 65, 0.1); color: #8f8; display: block; }
+        .diff-sub { background: rgba(255, 51, 51, 0.1); color: #f88; display: block; }
+    </style>
+</head>
+<body>
+
+    <header class="app-header">
+        <h1>BIT // THE NEXT EVOLUTION OF GIT</h1>
+        <div class="tagline">"Bit is Git with a brain."</div>
+    </header>
+
+    <div class="grid">
+        <div class="col">
+            <div class="card" style="flex: 2">
+                <div style="display:flex; justify-content:space-between; align-items:center">
+                    <h2>📂 Project Files</h2>
+                    <button onclick="createNewFile()" style="padding:2px 8px; font-size:0.7em; flex:none; border-color:var(--text)">+ NEW</button>
+                </div>
+                <div class="list-container" id="file-list">Scanning...</div>
+            </div>
+            <div class="card" style="flex: 1">
+                <h2>👻 Ghost Protocol</h2>
+                <div style="padding-bottom: 10px; border-bottom: 1px solid #333; margin-bottom: 10px;">
+                    <input type="text" id="ghost-name" placeholder="Ghost Name (e.g. stealth-v1)">
+                    <button onclick="spawnGhost()" style="width:100%">SPAWN GHOST</button>
+                </div>
+                <div class="list-container" id="ghost-list"></div>
+            </div>
+        </div>
+
+        <div class="col">
+            <div class="card" style="height: 100%">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <h2>📝 Editor: <span id="current-filename" style="color:#fff">Select File</span></h2>
+                    <div style="font-size:0.8em; color:#666" id="save-status"></div>
+                </div>
+                
+                <div class="btn-group">
+                    <button onclick="saveFile()">💾 SAVE</button>
+                    <button onclick="runCode()">▶ RUN</button>
+                    <button onclick="viewDiff()">🔍 DIFF</button>
+                </div>
+
+                <textarea id="code-editor" class="editor-area" spellcheck="false" placeholder="// Select a file from the left to edit code..."></textarea>
+                
+                <div class="terminal" id="output-log">
+                    > System Online. Waiting for input...
+                </div>
+            </div>
+        </div>
+
+        <div class="col">
+            <div class="card" style="flex: 1">
+                <h2>🧠 Symbol Radar</h2>
+                <div id="symbol-list" style="color:var(--purple); font-size:0.9em; flex:1"></div>
+            </div>
+            
+            <div class="card" style="flex: 2">
+                <h2>🕒 Timeline of Change</h2>
+                <div class="timeline" id="history-list"></div>
+                <button class="action" style="margin-top:10px" onclick="triggerCommit()">🤖 AI AUTO-COMMIT</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="diff-modal" onclick="closeDiff()">
+        <div class="diff-box" onclick="event.stopPropagation()">
+            <h2 style="border-bottom: 1px solid #333; padding-bottom:10px">CHANGE X-RAY</h2>
+            <pre id="diff-content" style="font-family: monospace; font-size: 0.9em;"></pre>
+            <button onclick="closeDiff()" style="margin-top:20px; width: auto; padding: 10px 30px;">CLOSE</button>
+        </div>
+    </div>
+
+    <script>
+        const API = "http://127.0.0.1:8000/api";
+        let currentFile = null;
+
+        // --- CORE FUNCTIONS ---
+
+        async function refresh() {
+            // 1. Files
+            const sRes = await fetch(API + '/status');
+            const sData = await sRes.json();
+            const allFiles = new Set([...sData.all_files, ...sData.files.map(f => f.file)]);
+            document.getElementById('file-list').innerHTML = Array.from(allFiles).map(f => {
+                const isMod = sData.files.find(x => x.file === f);
+                return `<div class="file-item ${isMod ? 'mod' : ''}" onclick="loadFile('${f}')">
+                            ${isMod ? '[MODIFIED]' : ''} ${f}
+                        </div>`;
+            }).join('');
+
+            // 2. Ghosts
+            const gRes = await fetch(API + '/ghosts');
+            const gData = await gRes.json();
+            document.getElementById('ghost-list').innerHTML = gData.ghosts.map(g => 
+                `<div class="ghost-item"><span>👻</span> ${g}</div>`
+            ).join('') || '<div style="opacity:0.5; padding:5px">No Active Ghosts</div>';
+
+            // 3. Timeline (FIXED: Shows Author and Date)
+            const hRes = await fetch(API + '/history');
+            const hData = await hRes.json();
+            document.getElementById('history-list').innerHTML = hData.commits.map(c => `
+                <div class="commit-node">
+                    <div class="commit-header">
+                        <span class="commit-author">👤 ${c.author}</span>
+                        <span>${c.date}</span>
+                    </div>
+                    <div class="commit-msg">${c.msg}</div>
+                    <div style="margin-top:5px"><span class="commit-hash">#${c.hash}</span></div>
+                </div>
+            `).join('');
+
+            // 4. Symbols (FIXED: Only shows changed logic)
+            const symRes = await fetch(API + '/symbols');
+            const symData = await symRes.json();
+            document.getElementById('symbol-list').innerHTML = symData.functions.map(f => 
+                `<div style="padding:4px 0; border-bottom:1px solid #222">⚠ Logic Change: <b>${f}</b></div>`
+            ).join('') || '<div style="opacity:0.5; font-style:italic">No logic changes detected.</div>';
+        }
+
+        function createNewFile() {
+            const name = prompt("Enter new filename (e.g., test.py):");
+            if (name) {
+                currentFile = name;
+                document.getElementById('current-filename').innerText = name + " (New)";
+                document.getElementById('code-editor').value = "# New Python File\n\nprint('Hello World')";
+                log("Created buffer for " + name + ". Click SAVE to write to disk.");
+            }
+        }
+
+        async function loadFile(filename) {
+            currentFile = filename;
+            document.getElementById('current-filename').innerText = filename;
+            const res = await fetch(`${API}/file?filename=${filename}`);
+            const data = await res.json();
+            document.getElementById('code-editor').value = data.content;
+            log(`Loaded source: ${filename}`);
+        }
+
+        async function saveFile() {
+            if(!currentFile) return alert("No file selected or created.");
+            const content = document.getElementById('code-editor').value;
+            const res = await fetch(`${API}/save`, {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({filename: currentFile, content: content})
+            });
+            const data = await res.json();
+            log(data.log);
+            refresh();
+        }
+
+        async function spawnGhost() {
+            const name = document.getElementById('ghost-name').value;
+            if(!name) return alert("Name required");
+            const res = await fetch(`${API}/ghosts`, {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name})
+            });
+            const data = await res.json();
+            log(data.log);
+            document.getElementById('ghost-name').value = '';
+            refresh();
+        }
+
+        async function runCode() {
+            if(!currentFile) return;
+            log(`Executing ${currentFile}...`);
+            const res = await fetch(`${API}/run`, {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({filename: currentFile})
+            });
+            const data = await res.json();
+            log(data.output);
+        }
+
+        async function viewDiff() {
+            if(!currentFile) return alert("Select a file");
+            const res = await fetch(`${API}/diff?file=${currentFile}`);
+            const data = await res.json();
+            if(!data.diff) return alert("No changes to diff.");
+            
+            const html = data.diff.split('\n').map(line => {
+                if(line.startsWith('+')) return `<span class="diff-add">${line}</span>`;
+                if(line.startsWith('-')) return `<span class="diff-sub">${line}</span>`;
+                return line;
+            }).join('\n');
+            
+            document.getElementById('diff-content').innerHTML = html;
+            document.getElementById('diff-modal').style.display = 'flex';
+        }
+
+        async function triggerCommit() {
+            log("AI Agent taking control...");
+            await fetch(`${API}/commit`, { method: 'POST' });
+            log("Commit successful.");
+            refresh();
+        }
+
+        function closeDiff() { document.getElementById('diff-modal').style.display = 'none'; }
+        function log(msg) {
+            const t = document.getElementById('output-log');
+            t.innerText += `\n> ${msg}`;
+            t.scrollTop = t.scrollHeight;
+        }
+
+        setInterval(refresh, 5000);
+        refresh();
+    </script>
+</body>
+</html>
